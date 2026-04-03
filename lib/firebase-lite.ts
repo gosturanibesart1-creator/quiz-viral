@@ -13,3 +13,4 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const dbLite = getFirestore(app);
+export default app;

@@ -307,7 +307,7 @@ export default function PlayQuizPage() {
           <p className="text-zinc-400">Sa mirë e njeh {quiz.name}?</p>
         </div>
 
-        <div className="mb-5 overflow-x-auto">
+        <div className="mb-5">
           <div className="flex min-w-max items-center justify-center gap-2 px-1">
             {quiz.questions.map((_, i) => {
               const done = answers[i] !== -1;
