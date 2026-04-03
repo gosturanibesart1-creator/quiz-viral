@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore/lite";
+import { dbLite } from "@/lib/firebase-lite";
 
 type QuizOption = {
   label: string;
@@ -29,6 +29,7 @@ export default function OwnerQuizPage() {
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
   const [copied, setCopied] = useState(false);
 
   const playLink = useMemo(() => {
@@ -36,28 +37,107 @@ export default function OwnerQuizPage() {
     return `${window.location.origin}/play/${id}`;
   }, [id]);
 
-  useEffect(() => {
-    const fetchQuiz = async () => {
-      try {
-        if (!id) return;
+  const loadQuiz = async () => {
+    if (!id) {
+      setFetchError("Linku i quiz-it mungon.");
+      setLoading(false);
+      return;
+    }
 
-        const ref = doc(db, "quizzes", id);
+    try {
+      setLoading(true);
+      setFetchError("");
+
+      const ref = doc(dbLite, "quizzes", id);
+      const snap = await getDoc(ref);
+
+      if (!snap.exists()) {
+        setQuiz(null);
+        setFetchError("Quiz nuk u gjet.");
+        return;
+      }
+
+      const data = snap.data() as Quiz;
+
+      if (!data?.questions?.length) {
+        setQuiz(null);
+        setFetchError("Quiz është bosh ose i prishur.");
+        return;
+      }
+
+      setQuiz(data);
+    } catch (error) {
+      console.error("Gabim gjatë leximit të quiz-it:", error);
+      setQuiz(null);
+      setFetchError("Gabim gjatë ngarkimit të quiz-it.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchWithTimeout = async () => {
+      if (!id) {
+        setFetchError("Linku i quiz-it mungon.");
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      setFetchError("");
+
+      const timeout = setTimeout(() => {
+        if (!cancelled) {
+          setLoading(false);
+          setFetchError("Ngarkimi po zgjat shumë. Provo përsëri.");
+        }
+      }, 8000);
+
+      try {
+        const ref = doc(dbLite, "quizzes", id);
         const snap = await getDoc(ref);
 
-        if (snap.exists()) {
-          setQuiz(snap.data() as Quiz);
-        } else {
+        if (cancelled) return;
+
+        clearTimeout(timeout);
+
+        if (!snap.exists()) {
           setQuiz(null);
+          setFetchError("Quiz nuk u gjet.");
+          return;
         }
+
+        const data = snap.data() as Quiz;
+
+        if (!data?.questions?.length) {
+          setQuiz(null);
+          setFetchError("Quiz është bosh ose i prishur.");
+          return;
+        }
+
+        setQuiz(data);
+        setFetchError("");
       } catch (error) {
-        console.error(error);
+        if (cancelled) return;
+
+        clearTimeout(timeout);
+        console.error("Gabim gjatë leximit të quiz-it:", error);
         setQuiz(null);
+        setFetchError("Gabim gjatë ngarkimit të quiz-it.");
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchQuiz();
+    fetchWithTimeout();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   const copyOnly = async () => {
@@ -109,15 +189,24 @@ export default function OwnerQuizPage() {
     );
   }
 
-  if (!quiz) {
+  if (fetchError || !quiz) {
     return (
       <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4">
         <div className="max-w-sm w-full text-center rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-6">
           <div className="text-4xl mb-3">😕</div>
-          <h1 className="text-2xl font-bold mb-2">Quiz nuk u gjet</h1>
-          <p className="text-zinc-400">
-            Linku mund të jetë i gabuar ose quiz-i nuk ekziston më.
+          <h1 className="text-2xl font-bold mb-2">
+            {fetchError || "Quiz nuk u gjet"}
+          </h1>
+          <p className="text-zinc-400 mb-5">
+            Provo përsëri ose krijo një quiz të ri.
           </p>
+
+          <button
+            onClick={loadQuiz}
+            className="w-full rounded-2xl bg-green-500 py-4 text-lg font-bold text-black"
+          >
+            Provo përsëri
+          </button>
         </div>
       </main>
     );

@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { addDoc, collection, doc, getDoc } from "firebase/firestore";
+import { addDoc, collection } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore/lite";
 import { db } from "@/lib/firebase";
+import { dbLite } from "@/lib/firebase-lite";
 import { QuizTemplateOption } from "@/lib/quizTemplates";
 
 type Question = {
@@ -50,7 +52,7 @@ export default function PlayQuizPage() {
       setLoading(true);
       setFetchError("");
 
-      const ref = doc(db, "quizzes", id);
+      const ref = doc(dbLite, "quizzes", id);
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
@@ -99,7 +101,7 @@ export default function PlayQuizPage() {
       }, 8000);
 
       try {
-        const ref = doc(db, "quizzes", id);
+        const ref = doc(dbLite, "quizzes", id);
         const snap = await getDoc(ref);
 
         if (cancelled) return;
