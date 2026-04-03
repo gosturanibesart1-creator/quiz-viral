@@ -60,7 +60,7 @@ export default function OwnerQuizPage() {
     fetchQuiz();
   }, [id]);
 
-  const copyLink = async () => {
+  const copyOnly = async () => {
     try {
       await navigator.clipboard.writeText(playLink);
       setCopied(true);
@@ -76,11 +76,33 @@ export default function OwnerQuizPage() {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
 
+  const shareInstagram = async () => {
+    try {
+      await navigator.clipboard.writeText(playLink);
+      alert("Linku u kopjua. Tani hape Instagram dhe bëj paste te story ose DM.");
+      window.open("https://www.instagram.com/", "_blank");
+    } catch (error) {
+      console.error(error);
+      alert("Nuk u kopjua linku");
+    }
+  };
+
+  const shareSnapchat = async () => {
+    try {
+      await navigator.clipboard.writeText(playLink);
+      alert("Linku u kopjua. Tani hape Snapchat dhe bëj paste.");
+      window.open("https://www.snapchat.com/", "_blank");
+    } catch (error) {
+      console.error(error);
+      alert("Nuk u kopjua linku");
+    }
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="text-4xl mb-3">💚</div>
+          <div className="text-4xl mb-3">🔥</div>
           <p className="text-lg text-zinc-300">Duke ngarkuar...</p>
         </div>
       </main>
@@ -105,7 +127,7 @@ export default function OwnerQuizPage() {
     <main className="min-h-screen bg-[#0c0c0f] px-4 py-8 text-white">
       <div className="mx-auto max-w-md">
         <div className="text-center mb-6">
-          <div className="text-5xl mb-3">{quiz.templateEmoji || "💚"}</div>
+          <div className="text-5xl mb-3">{quiz.templateEmoji || "🔥"}</div>
           <h1 className="text-3xl font-bold mb-2">Quiz u krijua me sukses</h1>
           <p className="text-zinc-400">
             Tani dërgoja linkun shokëve që ta luajnë.
@@ -138,7 +160,7 @@ export default function OwnerQuizPage() {
 
         <div className="space-y-3 mb-5">
           <button
-            onClick={copyLink}
+            onClick={copyOnly}
             className="w-full rounded-2xl bg-white py-4 text-lg font-bold text-black"
           >
             {copied ? "✅ Linku u kopjua" : "🔗 Kopjo linkun"}
@@ -151,14 +173,21 @@ export default function OwnerQuizPage() {
             WhatsApp
           </button>
 
-          <a
-            href={playLink}
-            target="_blank"
-            rel="noreferrer"
-            className="block w-full rounded-2xl border border-zinc-700 bg-[#111116] py-4 text-center text-lg font-bold text-white"
-          >
-            ▶️ Hap quizin
-          </a>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={shareInstagram}
+              className="rounded-2xl bg-pink-500 py-4 text-base font-bold text-white"
+            >
+              Instagram
+            </button>
+
+            <button
+              onClick={shareSnapchat}
+              className="rounded-2xl bg-yellow-400 py-4 text-base font-bold text-black"
+            >
+              Snapchat
+            </button>
+          </div>
         </div>
 
         <div className="rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { addDoc, collection, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -34,9 +34,12 @@ export default function PlayQuizPage() {
 
   useEffect(() => {
     const fetchQuiz = async () => {
-      try {
-        if (!id) return;
+      if (!id) {
+        setLoading(false);
+        return;
+      }
 
+      try {
         const ref = doc(db, "quizzes", id);
         const snap = await getDoc(ref);
 
@@ -45,11 +48,11 @@ export default function PlayQuizPage() {
           setQuiz(data);
           setAnswers(new Array(data.questions.length).fill(-1));
         } else {
-          alert("Quiz nuk u gjet.");
+          setQuiz(null);
         }
       } catch (error) {
-        console.error(error);
-        alert("Gabim gjatë ngarkimit të quizit.");
+        console.error("Gabim gjatë ngarkimit të quizit:", error);
+        setQuiz(null);
       } finally {
         setLoading(false);
       }
@@ -58,25 +61,38 @@ export default function PlayQuizPage() {
     fetchQuiz();
   }, [id]);
 
+  const answeredCount = useMemo(
+    () => answers.filter((a) => a !== -1).length,
+    [answers]
+  );
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center text-2xl">
-        Loading...
-      </div>
+      <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="text-4xl mb-3">💚</div>
+          <p className="text-lg text-zinc-300">Duke ngarkuar...</p>
+        </div>
+      </main>
     );
   }
 
   if (!quiz) {
     return (
-      <div className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center text-2xl">
-        Quiz nuk u gjet.
-      </div>
+      <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4">
+        <div className="max-w-sm w-full text-center rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-6">
+          <div className="text-4xl mb-3">😕</div>
+          <h1 className="text-2xl font-bold mb-2">Quiz nuk u gjet</h1>
+          <p className="text-zinc-400">
+            Linku mund të jetë i gabuar ose quiz-i nuk ekziston.
+          </p>
+        </div>
+      </main>
     );
   }
 
   const currentQuestion = quiz.questions[currentStep];
   const isLastStep = currentStep === quiz.questions.length - 1;
-  const answeredCount = answers.filter((a) => a !== -1).length;
 
   const startQuiz = () => {
     if (!playerName.trim()) {
@@ -139,7 +155,7 @@ export default function PlayQuizPage() {
 
       router.push(`/result/${id}/${resultRef.id}`);
     } catch (error) {
-      console.error(error);
+      console.error("Gabim gjatë dërgimit:", error);
       alert("Gabim gjatë dërgimit.");
     } finally {
       setSubmitting(false);
@@ -152,7 +168,9 @@ export default function PlayQuizPage() {
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="text-5xl mb-3">{quiz.templateEmoji || "💚"}</div>
-            <h1 className="text-3xl font-semibold mb-2">Sfida e miqësisë</h1>
+            <h1 className="text-3xl font-semibold mb-2">
+              {quiz.templateTitle || "Sfida e miqësisë"}
+            </h1>
             <p className="text-zinc-400">Sa mirë e njeh {quiz.name}?</p>
           </div>
 
@@ -193,7 +211,9 @@ export default function PlayQuizPage() {
       <div className="mx-auto max-w-md">
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">{quiz.templateEmoji || "💚"}</div>
-          <h1 className="text-3xl font-semibold mb-2">Sfida e miqësisë</h1>
+          <h1 className="text-3xl font-semibold mb-2">
+            {quiz.templateTitle || "Sfida e miqësisë"}
+          </h1>
           <p className="text-zinc-400">Sa mirë e njeh {quiz.name}?</p>
         </div>
 
