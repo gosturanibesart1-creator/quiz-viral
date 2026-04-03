@@ -29,7 +29,9 @@ export default function CreatePremium() {
       <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-2">Quiz nuk u gjet</h1>
-          <p className="text-zinc-400">Kthehu dhe zgjidh një template tjetër.</p>
+          <p className="text-zinc-400">
+            Kthehu dhe zgjidh një template tjetër.
+          </p>
         </div>
       </main>
     );
@@ -66,7 +68,7 @@ export default function CreatePremium() {
       return;
     }
 
-    if (answers.some((a: number) => a === -1)) {
+    if (answers.some((a) => a === -1)) {
       alert("Zgjidh përgjigje për të gjitha pyetjet");
       return;
     }
@@ -90,7 +92,8 @@ export default function CreatePremium() {
         createdAt: Date.now(),
       });
 
-      router.push(`/play/${docRef.id}`);
+      // FIX: krijuesi shkon te faqja e vet, jo te player page
+      router.push(`/u/${docRef.id}`);
     } catch (error) {
       console.error(error);
       alert("Diçka shkoi keq");
