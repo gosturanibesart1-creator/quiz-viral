@@ -1,6 +1,5 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "Sfida e Miqësisë",
@@ -15,13 +14,15 @@ export default function RootLayout({
   return (
     <html lang="sq">
       <head>
-        <Script
-          id="adsense-script"
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+        />
+        <script
           async
-          strategy="afterInteractive"
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5314074910030090"
           crossOrigin="anonymous"
-        />
+        ></script>
       </head>
       <body>{children}</body>
     </html>
