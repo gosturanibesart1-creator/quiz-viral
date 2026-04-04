@@ -103,6 +103,20 @@ export default function CreatePremiumPage() {
   };
 
   if (step === -1) {
+    const handleStart = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+
+      const active = document.activeElement as HTMLElement | null;
+      active?.blur();
+
+      if (!name.trim()) {
+        alert("Vendos emrin");
+        return;
+      }
+
+      setStep(0);
+    };
+
     return (
       <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4 py-8">
         <div className="max-w-sm w-full text-center">
@@ -114,23 +128,25 @@ export default function CreatePremiumPage() {
 
           <p className="text-zinc-500 mb-6">Shkruaj emrin dhe vazhdo</p>
 
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Emri yt"
-            className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
-          />
+          <form onSubmit={handleStart} className="w-full">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Emri yt"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
+            />
 
-          <button
-            type="button"
-            onClick={() => {
-              if (!name.trim()) return;
-              setStep(0);
-            }}
-            className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold"
-          >
-            Vazhdo →
-          </button>
+            <button
+              type="submit"
+              className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold"
+            >
+              Vazhdo →
+            </button>
+          </form>
         </div>
       </main>
     );
