@@ -1,207 +1,156 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  quizTemplates,
-  QuizTemplateQuestion,
-  QuizTemplateOption,
-} from "@/lib/quizTemplates";
-import { addDoc, collection } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { quizTemplates, type QuizTemplate } from "@/lib/quizTemplates";
 
-export default function CreatePremium() {
+export default function CreateQuizFromTemplatePage() {
   const params = useParams();
   const router = useRouter();
 
-  const templateIndex = Number(params?.id);
-  const template = quizTemplates[templateIndex];
+  const templateId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const parsedId = Number(templateId);
 
-  const [step, setStep] = useState(-1);
+  const template = useMemo<QuizTemplate | null>(() => {
+    if (Number.isNaN(parsedId)) return null;
+    return quizTemplates[parsedId] ?? null;
+  }, [parsedId]);
+
   const [name, setName] = useState("");
-  const [answers, setAnswers] = useState<number[]>(
-    new Array(template?.questions?.length || 0).fill(-1)
-  );
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!template) {
     return (
-      <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-2">Quiz nuk u gjet</h1>
-          <p className="text-zinc-400">
-            Kthehu dhe zgjidh një template tjetër.
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  const progress =
-    step >= 0
-      ? Math.round(((step + 1) / template.questions.length) * 100)
-      : 0;
-
-  const isLastStep = step === template.questions.length - 1;
-
-  const next = () => {
-    if (step < template.questions.length - 1) {
-      setStep((prev) => prev + 1);
-    }
-  };
-
-  const choose = (index: number) => {
-    const copy = [...answers];
-    copy[step] = index;
-    setAnswers(copy);
-
-    if (!isLastStep) {
-      setTimeout(() => {
-        next();
-      }, 180);
-    }
-  };
-
-  const handleCreate = async () => {
-    if (!name.trim()) {
-      alert("Vendos emrin");
-      return;
-    }
-
-    if (answers.some((a) => a === -1)) {
-      alert("Zgjidh përgjigje për të gjitha pyetjet");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const questions = template.questions.map(
-        (q: QuizTemplateQuestion, i: number) => ({
-          question: q.question,
-          options: q.options,
-          correctIndex: answers[i],
-        })
-      );
-
-      const docRef = await addDoc(collection(db, "quizzes"), {
-        name: name.trim(),
-        templateTitle: template.title,
-        templateEmoji: template.emoji,
-        questions,
-        createdAt: Date.now(),
-      });
-
-      // FIX: krijuesi shkon te faqja e vet, jo te player page
-      router.push(`/u/${docRef.id}`);
-    } catch (error) {
-      console.error(error);
-      alert("Diçka shkoi keq");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (step === -1) {
-    return (
-      <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4 py-8">
-        <div className="max-w-sm w-full text-center">
-          <div className="text-5xl mb-3">{template.emoji}</div>
-
-          <h1 className="text-3xl font-semibold mb-2">Fillo quizin</h1>
-
-          <p className="text-zinc-400 mb-3">{template.title}</p>
-
-          <p className="text-zinc-500 mb-6">Shkruaj emrin dhe vazhdo</p>
-
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Emri yt"
-            className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
-          />
-
+      <main className="min-h-screen bg-[#0c0c0f] text-white px-4 py-6">
+        <div className="max-w-xl mx-auto text-center">
+          <h1 className="text-2xl font-bold mb-3">Quiz nuk u gjet</h1>
           <button
-            onClick={() => {
-              if (!name.trim()) return;
-              setStep(0);
-            }}
-            className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold"
+            onClick={() => router.push("/create")}
+            className="rounded-2xl bg-green-500 px-5 py-3 font-semibold text-black"
           >
-            Vazhdo →
+            Kthehu
           </button>
         </div>
       </main>
     );
   }
 
-  const q = template.questions[step];
-  const manyOptions = q.options.length > 8;
-  const mediumOptions = q.options.length > 4 && q.options.length <= 8;
+  const safeTemplate = template;
+
+  function handleSelect(questionIndex: number, optionLabel: string) {
+    setAnswers((prev) => ({
+      ...prev,
+      [questionIndex]: optionLabel,
+    }));
+  }
+
+  async function handleCreateQuiz() {
+    setError("");
+
+    if (!name.trim()) {
+      setError("Shkruaj emrin tënd.");
+      return;
+    }
+
+    if (Object.keys(answers).length !== safeTemplate.questions.length) {
+      setError("Përgjigju të gjitha pyetjeve.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const payload = {
+        type: safeTemplate.title,
+        emoji: safeTemplate.emoji,
+        ownerName: name.trim(),
+        questions: safeTemplate.questions.map((q, index) => ({
+          question: q.question,
+          options: q.options,
+          correctAnswer: answers[index],
+        })),
+        createdAt: serverTimestamp(),
+      };
+
+      const docRef = await addDoc(collection(db, "quizzes"), payload);
+
+      router.push(`/play/${docRef.id}`);
+    } catch (err: any) {
+      console.error("Create quiz error:", err);
+      setError(err?.message || "Ndodhi një gabim gjatë krijimit.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#0c0c0f] text-white px-4 py-6">
-      <div className="max-w-md mx-auto">
-        <div className="text-center mb-5">
-          <div className="text-sm text-zinc-500 mb-2">
-            {step + 1} / {template.questions.length}
-          </div>
+      <div className="max-w-2xl mx-auto">
+        <div className="mb-8 text-center">
+          <div className="text-5xl mb-3">{safeTemplate.emoji}</div>
+          <h1 className="text-3xl font-bold">{safeTemplate.title} Quiz</h1>
+          <p className="text-zinc-400 mt-2">
+            Plotëso përgjigjet e tua dhe krijoje quiz-in
+          </p>
+        </div>
 
-          <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+        <div className="mb-6">
+          <label className="block text-sm text-zinc-300 mb-2">Emri yt</label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Shkruaj emrin"
+            className="w-full rounded-2xl border border-zinc-800 bg-[#1a1a1f] px-4 py-3 outline-none"
+          />
+        </div>
+
+        <div className="space-y-6">
+          {safeTemplate.questions.map((q, questionIndex) => (
             <div
-              className="h-full bg-green-500 transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-4 sm:p-5">
-          <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-5 leading-tight">
-            {q.question}
-          </h1>
-
-          <div
-            className={[
-              "gap-3",
-              manyOptions
-                ? "grid grid-cols-1"
-                : mediumOptions
-                ? "grid grid-cols-2"
-                : "grid grid-cols-2",
-            ].join(" ")}
-          >
-            {q.options.map((opt: QuizTemplateOption, i: number) => {
-              const active = answers[step] === i;
-
-              return (
-                <button
-                  key={i}
-                  onClick={() => choose(i)}
-                  className={`rounded-2xl border px-4 py-4 text-center transition active:scale-95 min-h-[84px] flex flex-col items-center justify-center ${
-                    active
-                      ? "bg-green-500 text-black border-green-500"
-                      : "bg-black text-white border-zinc-800"
-                  }`}
-                >
-                  <div className="text-2xl mb-2">{opt.emoji}</div>
-                  <div className="text-sm sm:text-base font-semibold leading-snug">
-                    {opt.label}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {isLastStep && (
-            <button
-              onClick={handleCreate}
-              disabled={loading}
-              className="mt-6 w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-bold disabled:opacity-50"
+              key={questionIndex}
+              className="rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-5"
             >
-              {loading ? "Duke krijuar..." : "Krijo quiz 🚀"}
-            </button>
-          )}
+              <h2 className="text-lg font-semibold mb-4">{q.question}</h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {q.options.map((option, optionIndex) => {
+                  const selected = answers[questionIndex] === option.label;
+
+                  return (
+                    <button
+                      key={`${option.label}-${optionIndex}`}
+                      type="button"
+                      onClick={() => handleSelect(questionIndex, option.label)}
+                      className={`rounded-2xl border px-4 py-3 text-left transition ${
+                        selected
+                          ? "border-green-500 bg-green-500/10"
+                          : "border-zinc-700 bg-[#111114] hover:border-zinc-500"
+                      }`}
+                    >
+                      <span className="mr-2">{option.emoji}</span>
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
+
+        {error && <p className="mt-6 text-red-400">{error}</p>}
+
+        <button
+          onClick={handleCreateQuiz}
+          disabled={loading}
+          className="mt-8 w-full rounded-2xl bg-green-500 px-5 py-4 font-bold text-black disabled:opacity-50"
+        >
+          {loading ? "Duke u krijuar..." : "Krijo Quiz"}
+        </button>
       </div>
     </main>
   );

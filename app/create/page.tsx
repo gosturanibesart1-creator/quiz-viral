@@ -20,7 +20,7 @@ export default function CreateSelectPage() {
         <div className="space-y-4">
           {quizTemplates.map((quiz, index) => (
             <button
-              key={index}
+              key={`${quiz.title}-${index}`}
               onClick={() => router.push(`/create/${index}`)}
               className="w-full rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-5 text-left transition hover:border-green-500"
             >
