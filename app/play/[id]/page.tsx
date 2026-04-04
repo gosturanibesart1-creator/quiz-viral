@@ -2,10 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { addDoc, collection } from "firebase/firestore";
-import { doc, getDoc } from "firebase/firestore/lite";
+import { addDoc, collection, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { dbLite } from "@/lib/firebase-lite";
 import { QuizTemplateOption } from "@/lib/quizTemplates";
 
 type Question = {
@@ -24,7 +22,9 @@ type Quiz = {
 export default function PlayQuizPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params?.id as string;
+
+  const rawId = params?.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [answers, setAnswers] = useState<number[]>([]);
@@ -52,7 +52,7 @@ export default function PlayQuizPage() {
       setLoading(true);
       setFetchError("");
 
-      const ref = doc(dbLite, "quizzes", id);
+      const ref = doc(db, "quizzes", id);
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
@@ -81,69 +81,8 @@ export default function PlayQuizPage() {
   };
 
   useEffect(() => {
-    let cancelled = false;
-
-    const fetchWithTimeout = async () => {
-      if (!id) {
-        setFetchError("Linku i quiz-it mungon.");
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setFetchError("");
-
-      const timeout = setTimeout(() => {
-        if (!cancelled) {
-          setLoading(false);
-          setFetchError("Ngarkimi po zgjat shumë. Provo përsëri.");
-        }
-      }, 8000);
-
-      try {
-        const ref = doc(dbLite, "quizzes", id);
-        const snap = await getDoc(ref);
-
-        if (cancelled) return;
-
-        clearTimeout(timeout);
-
-        if (!snap.exists()) {
-          setQuiz(null);
-          setFetchError("Quiz nuk u gjet.");
-          return;
-        }
-
-        const data = snap.data() as Quiz;
-
-        if (!data?.questions?.length) {
-          setQuiz(null);
-          setFetchError("Quiz është bosh ose i prishur.");
-          return;
-        }
-
-        setQuiz(data);
-        setAnswers(new Array(data.questions.length).fill(-1));
-        setFetchError("");
-      } catch (error) {
-        if (cancelled) return;
-
-        clearTimeout(timeout);
-        console.error("Gabim gjatë leximit të quiz-it:", error);
-        setQuiz(null);
-        setFetchError("Gabim gjatë ngarkimit të quiz-it.");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchWithTimeout();
-
-    return () => {
-      cancelled = true;
-    };
+    loadQuiz();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const startQuiz = () => {
@@ -175,7 +114,7 @@ export default function PlayQuizPage() {
   };
 
   const handleSubmit = async () => {
-    if (!quiz) return;
+    if (!quiz || !id) return;
 
     if (!playerName.trim()) {
       alert("Shkruaj emrin tënd.");
@@ -240,6 +179,7 @@ export default function PlayQuizPage() {
           </p>
 
           <button
+            type="button"
             onClick={loadQuiz}
             className="w-full rounded-2xl bg-green-500 py-4 text-lg font-bold text-black"
           >
@@ -285,6 +225,7 @@ export default function PlayQuizPage() {
             />
 
             <button
+              type="button"
               onClick={startQuiz}
               className="w-full rounded-2xl bg-green-500 py-4 text-xl font-bold text-black"
             >
@@ -316,6 +257,7 @@ export default function PlayQuizPage() {
               return (
                 <button
                   key={i}
+                  type="button"
                   onClick={() => goToStep(i)}
                   className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-bold transition ${
                     active
@@ -357,6 +299,7 @@ export default function PlayQuizPage() {
               return (
                 <button
                   key={optionIndex}
+                  type="button"
                   onClick={() => selectAnswer(optionIndex)}
                   className={`rounded-2xl border px-4 py-4 text-center transition active:scale-95 min-h-[84px] flex flex-col items-center justify-center ${
                     active
@@ -375,6 +318,7 @@ export default function PlayQuizPage() {
 
           {isLastStep && answers[currentStep] !== -1 && (
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={submitting}
               className="mt-6 w-full rounded-2xl bg-green-500 px-6 py-5 text-2xl font-bold text-black disabled:opacity-50"

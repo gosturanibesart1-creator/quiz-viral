@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore/lite";
-import { dbLite } from "@/lib/firebase-lite";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 type QuizOption = {
   label: string;
@@ -25,7 +25,8 @@ type Quiz = {
 
 export default function OwnerQuizPage() {
   const params = useParams();
-  const id = params?.id as string;
+  const rawId = params?.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
@@ -48,7 +49,7 @@ export default function OwnerQuizPage() {
       setLoading(true);
       setFetchError("");
 
-      const ref = doc(dbLite, "quizzes", id);
+      const ref = doc(db, "quizzes", id);
       const snap = await getDoc(ref);
 
       if (!snap.exists()) {
@@ -76,68 +77,8 @@ export default function OwnerQuizPage() {
   };
 
   useEffect(() => {
-    let cancelled = false;
-
-    const fetchWithTimeout = async () => {
-      if (!id) {
-        setFetchError("Linku i quiz-it mungon.");
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setFetchError("");
-
-      const timeout = setTimeout(() => {
-        if (!cancelled) {
-          setLoading(false);
-          setFetchError("Ngarkimi po zgjat shumë. Provo përsëri.");
-        }
-      }, 8000);
-
-      try {
-        const ref = doc(dbLite, "quizzes", id);
-        const snap = await getDoc(ref);
-
-        if (cancelled) return;
-
-        clearTimeout(timeout);
-
-        if (!snap.exists()) {
-          setQuiz(null);
-          setFetchError("Quiz nuk u gjet.");
-          return;
-        }
-
-        const data = snap.data() as Quiz;
-
-        if (!data?.questions?.length) {
-          setQuiz(null);
-          setFetchError("Quiz është bosh ose i prishur.");
-          return;
-        }
-
-        setQuiz(data);
-        setFetchError("");
-      } catch (error) {
-        if (cancelled) return;
-
-        clearTimeout(timeout);
-        console.error("Gabim gjatë leximit të quiz-it:", error);
-        setQuiz(null);
-        setFetchError("Gabim gjatë ngarkimit të quiz-it.");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchWithTimeout();
-
-    return () => {
-      cancelled = true;
-    };
+    loadQuiz();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const copyOnly = async () => {
@@ -202,6 +143,7 @@ export default function OwnerQuizPage() {
           </p>
 
           <button
+            type="button"
             onClick={loadQuiz}
             className="w-full rounded-2xl bg-green-500 py-4 text-lg font-bold text-black"
           >
@@ -249,6 +191,7 @@ export default function OwnerQuizPage() {
 
         <div className="space-y-3 mb-5">
           <button
+            type="button"
             onClick={copyOnly}
             className="w-full rounded-2xl bg-white py-4 text-lg font-bold text-black"
           >
@@ -256,6 +199,7 @@ export default function OwnerQuizPage() {
           </button>
 
           <button
+            type="button"
             onClick={shareWhatsApp}
             className="w-full rounded-2xl bg-green-500 py-4 text-lg font-bold text-black"
           >
@@ -264,6 +208,7 @@ export default function OwnerQuizPage() {
 
           <div className="grid grid-cols-2 gap-3">
             <button
+              type="button"
               onClick={shareInstagram}
               className="rounded-2xl bg-pink-500 py-4 text-base font-bold text-white"
             >
@@ -271,6 +216,7 @@ export default function OwnerQuizPage() {
             </button>
 
             <button
+              type="button"
               onClick={shareSnapchat}
               className="rounded-2xl bg-yellow-400 py-4 text-base font-bold text-black"
             >

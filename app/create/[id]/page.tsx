@@ -1,346 +1,165 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { addDoc, collection, doc, getDoc } from "firebase/firestore";
+import {
+  quizTemplates,
+  QuizTemplateQuestion,
+  QuizTemplateOption,
+} from "@/lib/quizTemplates";
+import { addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { QuizTemplateOption } from "@/lib/quizTemplates";
 
-type Question = {
-  question: string;
-  options: QuizTemplateOption[];
-  correctIndex: number;
-};
-
-type Quiz = {
-  name: string;
-  templateTitle?: string;
-  templateEmoji?: string;
-  questions: Question[];
-};
-
-export default function PlayQuizPage() {
+export default function CreatePremiumPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params?.id as string;
 
-  const [quiz, setQuiz] = useState<Quiz | null>(null);
-  const [answers, setAnswers] = useState<number[]>([]);
-  const [playerName, setPlayerName] = useState("");
-  const [started, setStarted] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
+  const rawId = params?.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
 
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const templateIndex = Number(id);
+  const template = quizTemplates[templateIndex];
 
-  const answeredCount = useMemo(
-    () => answers.filter((a) => a !== -1).length,
-    [answers]
+  const [step, setStep] = useState(-1);
+  const [name, setName] = useState("");
+  const [answers, setAnswers] = useState<number[]>(
+    new Array(template?.questions?.length || 0).fill(-1)
   );
+  const [loading, setLoading] = useState(false);
 
-  const loadQuiz = async () => {
-    if (!id) {
-      setFetchError("Linku i quiz-it mungon.");
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setFetchError("");
-
-      const ref = doc(db, "quizzes", id);
-      const snap = await getDoc(ref);
-
-      if (!snap.exists()) {
-        setQuiz(null);
-        setFetchError("Quiz nuk u gjet.");
-        return;
-      }
-
-      const data = snap.data() as Quiz;
-
-      if (!data?.questions?.length) {
-        setQuiz(null);
-        setFetchError("Quiz është bosh ose i prishur.");
-        return;
-      }
-
-      setQuiz(data);
-      setAnswers(new Array(data.questions.length).fill(-1));
-    } catch (error) {
-      console.error("Gabim gjatë leximit të quiz-it:", error);
-      setQuiz(null);
-      setFetchError("Gabim gjatë ngarkimit të quiz-it.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchWithTimeout = async () => {
-      if (!id) {
-        setFetchError("Linku i quiz-it mungon.");
-        setLoading(false);
-        return;
-      }
-
-      setLoading(true);
-      setFetchError("");
-
-      const timeout = setTimeout(() => {
-        if (!cancelled) {
-          setLoading(false);
-          setFetchError("Ngarkimi po zgjat shumë. Provo përsëri.");
-        }
-      }, 8000);
-
-      try {
-        const ref = doc(db, "quizzes", id);
-        const snap = await getDoc(ref);
-
-        if (cancelled) return;
-
-        clearTimeout(timeout);
-
-        if (!snap.exists()) {
-          setQuiz(null);
-          setFetchError("Quiz nuk u gjet.");
-          return;
-        }
-
-        const data = snap.data() as Quiz;
-
-        if (!data?.questions?.length) {
-          setQuiz(null);
-          setFetchError("Quiz është bosh ose i prishur.");
-          return;
-        }
-
-        setQuiz(data);
-        setAnswers(new Array(data.questions.length).fill(-1));
-        setFetchError("");
-      } catch (error) {
-        if (cancelled) return;
-
-        clearTimeout(timeout);
-        console.error("Gabim gjatë leximit të quiz-it:", error);
-        setQuiz(null);
-        setFetchError("Gabim gjatë ngarkimit të quiz-it.");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchWithTimeout();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  const startQuiz = () => {
-    if (!playerName.trim()) {
-      alert("Shkruaj emrin tënd.");
-      return;
-    }
-    setStarted(true);
-  };
-
-  const selectAnswer = (optionIndex: number) => {
-    setAnswers((prev) => {
-      const copy = [...prev];
-      copy[currentStep] = optionIndex;
-      return copy;
-    });
-
-    const isLast = currentStep === (quiz?.questions.length || 1) - 1;
-
-    if (!isLast) {
-      setTimeout(() => {
-        setCurrentStep((prev) => prev + 1);
-      }, 180);
-    }
-  };
-
-  const goToStep = (index: number) => {
-    setCurrentStep(index);
-  };
-
-  const handleSubmit = async () => {
-    if (!quiz) return;
-
-    if (!playerName.trim()) {
-      alert("Shkruaj emrin tënd.");
-      return;
-    }
-
-    if (answers.some((a) => a === -1)) {
-      alert("Përgjigju të gjitha pyetjeve.");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-
-      let score = 0;
-
-      quiz.questions.forEach((q, i) => {
-        if (answers[i] === q.correctIndex) {
-          score++;
-        }
-      });
-
-      const resultRef = await addDoc(collection(db, "results"), {
-        quizId: id,
-        name: playerName.trim(),
-        score,
-        total: quiz.questions.length,
-        answers,
-        createdAt: Date.now(),
-      });
-
-      router.push(`/result/${id}/${resultRef.id}`);
-    } catch (error) {
-      console.error("Gabim gjatë dërgimit:", error);
-      alert("Gabim gjatë dërgimit.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading) {
+  if (!template) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0c0c0f] px-4 text-white">
+      <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="mb-3 text-4xl">💚</div>
-          <p className="text-lg text-zinc-300">Duke ngarkuar...</p>
+          <h1 className="text-2xl font-bold mb-2">Template nuk u gjet</h1>
+          <p className="text-zinc-400">Kthehu dhe zgjidh një kategori tjetër.</p>
         </div>
       </main>
     );
   }
 
-  if (fetchError || !quiz) {
+  const progress =
+    step >= 0
+      ? Math.round(((step + 1) / template.questions.length) * 100)
+      : 0;
+
+  const isLastStep = step === template.questions.length - 1;
+
+  const next = () => {
+    if (step < template.questions.length - 1) {
+      setStep((prev) => prev + 1);
+    }
+  };
+
+  const choose = (index: number) => {
+    const copy = [...answers];
+    copy[step] = index;
+    setAnswers(copy);
+
+    if (!isLastStep) {
+      setTimeout(() => {
+        next();
+      }, 180);
+    }
+  };
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      alert("Vendos emrin");
+      return;
+    }
+
+    if (answers.some((a) => a === -1)) {
+      alert("Zgjidh përgjigje për të gjitha pyetjet");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const questions = template.questions.map(
+        (q: QuizTemplateQuestion, i: number) => ({
+          question: q.question,
+          options: q.options,
+          correctIndex: answers[i],
+        })
+      );
+
+      const docRef = await addDoc(collection(db, "quizzes"), {
+        name: name.trim(),
+        templateTitle: template.title,
+        templateEmoji: template.emoji,
+        questions,
+        createdAt: Date.now(),
+      });
+
+      router.push(`/u/${docRef.id}`);
+    } catch (error) {
+      console.error(error);
+      alert("Diçka shkoi keq");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (step === -1) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0c0c0f] px-4 text-white">
-        <div className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-6 text-center">
-          <div className="mb-3 text-4xl">😕</div>
-          <h1 className="mb-2 text-2xl font-bold">
-            {fetchError || "Quiz nuk u gjet"}
-          </h1>
-          <p className="mb-5 text-zinc-400">
-            Provo përsëri ose hape linkun direkt në Safari.
-          </p>
+      <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4 py-8">
+        <div className="max-w-sm w-full text-center">
+          <div className="text-5xl mb-3">{template.emoji}</div>
+
+          <h1 className="text-3xl font-semibold mb-2">Fillo quizin</h1>
+
+          <p className="text-zinc-400 mb-3">{template.title}</p>
+
+          <p className="text-zinc-500 mb-6">Shkruaj emrin dhe vazhdo</p>
+
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Emri yt"
+            className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
+          />
 
           <button
             type="button"
-            onClick={loadQuiz}
-            className="w-full rounded-2xl bg-green-500 py-4 text-lg font-bold text-black"
+            onClick={() => {
+              if (!name.trim()) return;
+              setStep(0);
+            }}
+            className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold"
           >
-            Provo përsëri
+            Vazhdo →
           </button>
         </div>
       </main>
     );
   }
 
-  const currentQuestion = quiz.questions[currentStep];
-  const isLastStep = currentStep === quiz.questions.length - 1;
-  const manyOptions = currentQuestion.options.length > 8;
-  const mediumOptions =
-    currentQuestion.options.length > 4 && currentQuestion.options.length <= 8;
-
-  if (!started) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#0c0c0f] px-4 py-8 text-white">
-        <div className="w-full max-w-md">
-          <div className="mb-8 text-center">
-            <div className="mb-3 text-5xl">{quiz.templateEmoji || "💚"}</div>
-            <h1 className="mb-2 text-3xl font-semibold">
-              {quiz.templateTitle || "Sfida e miqësisë"}
-            </h1>
-            <p className="text-zinc-400">Sa mirë e njeh {quiz.name}?</p>
-          </div>
-
-          <div className="rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-5">
-            <h2 className="mb-3 text-center text-3xl font-semibold">
-              Fillo quizin
-            </h2>
-
-            <p className="mb-5 text-center text-zinc-400">
-              Shkruaj emrin dhe vazhdo
-            </p>
-
-            <input
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Emri yt"
-              className="mb-4 w-full rounded-2xl border border-zinc-800 bg-black px-4 py-4 text-xl outline-none focus:border-green-500"
-            />
-
-            <button
-              type="button"
-              onClick={startQuiz}
-              className="w-full rounded-2xl bg-green-500 py-4 text-xl font-bold text-black"
-            >
-              Fillo 👉
-            </button>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  const q = template.questions[step];
+  const manyOptions = q.options.length > 8;
+  const mediumOptions = q.options.length > 4 && q.options.length <= 8;
 
   return (
-    <main className="min-h-screen bg-[#0c0c0f] px-4 py-8 text-white">
-      <div className="mx-auto max-w-md">
-        <div className="mb-8 text-center">
-          <div className="mb-3 text-5xl">{quiz.templateEmoji || "💚"}</div>
-          <h1 className="mb-2 text-3xl font-semibold">
-            {quiz.templateTitle || "Sfida e miqësisë"}
-          </h1>
-          <p className="text-zinc-400">Sa mirë e njeh {quiz.name}?</p>
-        </div>
+    <main className="min-h-screen bg-[#0c0c0f] text-white px-4 py-6">
+      <div className="max-w-md mx-auto">
+        <div className="text-center mb-5">
+          <div className="text-sm text-zinc-500 mb-2">
+            {step + 1} / {template.questions.length}
+          </div>
 
-        <div className="mb-5">
-          <div className="flex min-w-max items-center justify-center gap-2 px-1">
-            {quiz.questions.map((_, i) => {
-              const done = answers[i] !== -1;
-              const active = i === currentStep;
-
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => goToStep(i)}
-                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-bold transition ${
-                    active
-                      ? "bg-green-500 text-black"
-                      : done
-                      ? "border border-green-500 bg-green-500/20 text-green-400"
-                      : "border border-zinc-800 bg-[#1a1a1f] text-white"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
+          <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-green-500 transition-all duration-300"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
 
-        <div className="rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-5">
-          <h2 className="mb-3 text-center text-3xl font-semibold leading-tight">
-            {currentQuestion.question}
-          </h2>
-
-          <p className="mb-5 text-center text-zinc-400">
-            Përgjigjur: {answeredCount}/{quiz.questions.length}
-          </p>
+        <div className="rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-4 sm:p-5">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-5 leading-tight">
+            {q.question}
+          </h1>
 
           <div
             className={[
@@ -352,37 +171,37 @@ export default function PlayQuizPage() {
                 : "grid grid-cols-2",
             ].join(" ")}
           >
-            {currentQuestion.options.map((option, optionIndex) => {
-              const active = answers[currentStep] === optionIndex;
+            {q.options.map((opt: QuizTemplateOption, i: number) => {
+              const active = answers[step] === i;
 
               return (
                 <button
-                  key={optionIndex}
+                  key={i}
                   type="button"
-                  onClick={() => selectAnswer(optionIndex)}
-                  className={`flex min-h-[84px] flex-col items-center justify-center rounded-2xl border px-4 py-4 text-center transition active:scale-95 ${
+                  onClick={() => choose(i)}
+                  className={`rounded-2xl border px-4 py-4 text-center transition active:scale-95 min-h-[84px] flex flex-col items-center justify-center ${
                     active
-                      ? "border-green-500 bg-green-500 text-black"
-                      : "border-zinc-800 bg-black text-white"
+                      ? "bg-green-500 text-black border-green-500"
+                      : "bg-black text-white border-zinc-800"
                   }`}
                 >
-                  <div className="mb-2 text-2xl">{option.emoji}</div>
-                  <div className="text-sm font-semibold leading-snug sm:text-base">
-                    {option.label}
+                  <div className="text-2xl mb-2">{opt.emoji}</div>
+                  <div className="text-sm sm:text-base font-semibold leading-snug">
+                    {opt.label}
                   </div>
                 </button>
               );
             })}
           </div>
 
-          {isLastStep && answers[currentStep] !== -1 && (
+          {isLastStep && (
             <button
               type="button"
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="mt-6 w-full rounded-2xl bg-green-500 px-6 py-5 text-2xl font-bold text-black disabled:opacity-50"
+              onClick={handleCreate}
+              disabled={loading}
+              className="mt-6 w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-bold disabled:opacity-50"
             >
-              {submitting ? "Duke dërguar..." : "Dërgo përgjigjet 🚀"}
+              {loading ? "Duke krijuar..." : "Krijo quiz 🚀"}
             </button>
           )}
         </div>
