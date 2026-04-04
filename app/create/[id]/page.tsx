@@ -103,7 +103,7 @@ export default function CreatePremiumPage() {
     }
   };
 
-  const handleStartClick = () => {
+  const continueToQuestions = () => {
     if (starting) return;
 
     const cleanName = name.trim();
@@ -118,10 +118,10 @@ export default function CreatePremiumPage() {
     const active = document.activeElement as HTMLElement | null;
     active?.blur();
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       setStep(0);
       setStarting(false);
-    }, 180);
+    }, 250);
   };
 
   if (step === -1) {
@@ -142,7 +142,7 @@ export default function CreatePremiumPage() {
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                handleStartClick();
+                continueToQuestions();
               }
             }}
             placeholder="Emri yt"
@@ -150,13 +150,15 @@ export default function CreatePremiumPage() {
             autoCorrect="off"
             autoCapitalize="none"
             spellCheck={false}
+            inputMode="text"
             enterKeyHint="done"
             className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
           />
 
           <button
             type="button"
-            onClick={handleStartClick}
+            onClick={continueToQuestions}
+            onPointerUp={continueToQuestions}
             disabled={starting}
             className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold disabled:opacity-70"
           >
