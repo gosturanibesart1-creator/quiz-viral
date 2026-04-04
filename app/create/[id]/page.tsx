@@ -103,18 +103,25 @@ export default function CreatePremiumPage() {
   };
 
   if (step === -1) {
-    const handleStart = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-
+    const startFlow = () => {
       const active = document.activeElement as HTMLElement | null;
       active?.blur();
 
-      if (!name.trim()) {
+      const cleanName = name.trim();
+
+      if (!cleanName) {
         alert("Vendos emrin");
         return;
       }
 
-      setStep(0);
+      setTimeout(() => {
+        setStep(0);
+      }, 120);
+    };
+
+    const handleStart = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
+      startFlow();
     };
 
     return (
@@ -137,11 +144,17 @@ export default function CreatePremiumPage() {
               autoCorrect="off"
               autoCapitalize="none"
               spellCheck={false}
+              enterKeyHint="done"
               className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
             />
 
             <button
-              type="submit"
+              type="button"
+              onClick={startFlow}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                startFlow();
+              }}
               className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold"
             >
               Vazhdo →
