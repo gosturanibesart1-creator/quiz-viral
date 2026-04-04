@@ -8,7 +8,6 @@ body {
   color: white;
   width: 100%;
   min-height: 100%;
-  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -18,7 +17,6 @@ body {
 
 * {
   box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
 }
 
 button,
@@ -26,16 +24,17 @@ a,
 input,
 textarea,
 select {
-  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
+a,
 button {
-  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 img {
-  display: block;
   max-width: 100%;
   height: auto;
+  display: block;
 }
