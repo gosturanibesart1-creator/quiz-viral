@@ -103,9 +103,8 @@ export default function CreatePremiumPage() {
   };
 
   if (step === -1) {
-    const startFlow = () => {
-      const active = document.activeElement as HTMLElement | null;
-      active?.blur();
+    const handleStart = (e: React.FormEvent<HTMLFormElement>) => {
+      e.preventDefault();
 
       const cleanName = name.trim();
 
@@ -114,14 +113,12 @@ export default function CreatePremiumPage() {
         return;
       }
 
-      setTimeout(() => {
-        setStep(0);
-      }, 120);
-    };
+      const active = document.activeElement as HTMLElement | null;
+      active?.blur();
 
-    const handleStart = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      startFlow();
+      requestAnimationFrame(() => {
+        setStep(0);
+      });
     };
 
     return (
@@ -149,12 +146,7 @@ export default function CreatePremiumPage() {
             />
 
             <button
-              type="button"
-              onClick={startFlow}
-              onTouchEnd={(e) => {
-                e.preventDefault();
-                startFlow();
-              }}
+              type="submit"
               className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold"
             >
               Vazhdo →
