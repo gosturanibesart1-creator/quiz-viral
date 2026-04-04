@@ -26,6 +26,7 @@ export default function CreatePremiumPage() {
     new Array(template?.questions?.length || 0).fill(-1)
   );
   const [loading, setLoading] = useState(false);
+  const [starting, setStarting] = useState(false);
 
   if (!template) {
     return (
@@ -102,25 +103,28 @@ export default function CreatePremiumPage() {
     }
   };
 
+  const handleStartClick = () => {
+    if (starting) return;
+
+    const cleanName = name.trim();
+
+    if (!cleanName) {
+      alert("Vendos emrin");
+      return;
+    }
+
+    setStarting(true);
+
+    const active = document.activeElement as HTMLElement | null;
+    active?.blur();
+
+    setTimeout(() => {
+      setStep(0);
+      setStarting(false);
+    }, 180);
+  };
+
   if (step === -1) {
-    const handleStart = (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-
-      const cleanName = name.trim();
-
-      if (!cleanName) {
-        alert("Vendos emrin");
-        return;
-      }
-
-      const active = document.activeElement as HTMLElement | null;
-      active?.blur();
-
-      requestAnimationFrame(() => {
-        setStep(0);
-      });
-    };
-
     return (
       <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4 py-8">
         <div className="max-w-sm w-full text-center">
@@ -132,26 +136,32 @@ export default function CreatePremiumPage() {
 
           <p className="text-zinc-500 mb-6">Shkruaj emrin dhe vazhdo</p>
 
-          <form onSubmit={handleStart} className="w-full">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Emri yt"
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="none"
-              spellCheck={false}
-              enterKeyHint="done"
-              className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
-            />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleStartClick();
+              }
+            }}
+            placeholder="Emri yt"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            enterKeyHint="done"
+            className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
+          />
 
-            <button
-              type="submit"
-              className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold"
-            >
-              Vazhdo →
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={handleStartClick}
+            disabled={starting}
+            className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold disabled:opacity-70"
+          >
+            {starting ? "Duke vazhduar..." : "Vazhdo →"}
+          </button>
         </div>
       </main>
     );
