@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   quizTemplates,
@@ -27,6 +27,8 @@ export default function CreatePremiumPage() {
   );
   const [loading, setLoading] = useState(false);
   const [starting, setStarting] = useState(false);
+
+  const startLockRef = useRef(false);
 
   if (!template) {
     return (
@@ -104,7 +106,7 @@ export default function CreatePremiumPage() {
   };
 
   const continueToQuestions = () => {
-    if (starting) return;
+    if (startLockRef.current || starting) return;
 
     const cleanName = name.trim();
 
@@ -113,6 +115,7 @@ export default function CreatePremiumPage() {
       return;
     }
 
+    startLockRef.current = true;
     setStarting(true);
 
     const active = document.activeElement as HTMLElement | null;
@@ -121,6 +124,7 @@ export default function CreatePremiumPage() {
     window.setTimeout(() => {
       setStep(0);
       setStarting(false);
+      startLockRef.current = false;
     }, 250);
   };
 
@@ -158,7 +162,7 @@ export default function CreatePremiumPage() {
           <button
             type="button"
             onClick={continueToQuestions}
-            onPointerUp={continueToQuestions}
+            onPointerDown={continueToQuestions}
             disabled={starting}
             className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold disabled:opacity-70"
           >
