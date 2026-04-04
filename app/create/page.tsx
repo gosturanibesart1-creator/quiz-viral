@@ -1,9 +1,20 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { quizTemplates } from "@/lib/quizTemplates";
 
 export default function CreateSelectPage() {
+  const router = useRouter();
+
+  const handlePickTemplate = (index: number) => {
+    const name = window.prompt("Shkruaj emrin tënd");
+
+    if (!name || !name.trim()) return;
+
+    sessionStorage.setItem("quiz_creator_name", name.trim());
+    router.push(`/create/${index}`);
+  };
+
   return (
     <main className="min-h-screen bg-[#0c0c0f] px-4 py-8 text-white">
       <div className="mx-auto max-w-md">
@@ -11,17 +22,17 @@ export default function CreateSelectPage() {
           <div className="text-5xl mb-3">🔥</div>
           <h1 className="text-3xl font-bold mb-2">Zgjidh quizin</h1>
           <p className="text-zinc-400">
-            Zgjidh një template dhe krijoje shumë shpejt
+            Zgjidh një kategori dhe krijoje shumë shpejt
           </p>
         </div>
 
         <div className="space-y-4">
           {quizTemplates.map((template, index) => (
-            <Link
+            <button
               key={index}
-              href={`/create/${index}`}
-              className="block w-full rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-5 active:scale-[0.99] transition"
-              style={{ WebkitTapHighlightColor: "transparent" }}
+              type="button"
+              onClick={() => handlePickTemplate(index)}
+              className="block w-full rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-5 text-left active:scale-[0.99] transition"
             >
               <div className="flex items-center gap-4">
                 <div className="text-3xl shrink-0">{template.emoji}</div>
@@ -33,7 +44,7 @@ export default function CreateSelectPage() {
                   </p>
                 </div>
               </div>
-            </Link>
+            </button>
           ))}
         </div>
       </div>

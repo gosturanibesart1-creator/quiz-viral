@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   quizTemplates,
@@ -20,15 +20,37 @@ export default function CreatePremiumPage() {
   const templateIndex = Number(id);
   const template = quizTemplates[templateIndex];
 
-  const [step, setStep] = useState(-1);
-  const [name, setName] = useState("");
+  const [creatorName, setCreatorName] = useState("");
+  const [ready, setReady] = useState(false);
   const [answers, setAnswers] = useState<number[]>(
     new Array(template?.questions?.length || 0).fill(-1)
   );
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [starting, setStarting] = useState(false);
 
-  const startLockRef = useRef(false);
+  useEffect(() => {
+    const storedName = sessionStorage.getItem("quiz_creator_name")?.trim();
+
+    if (!template) return;
+
+    if (storedName) {
+      setCreatorName(storedName);
+      setReady(true);
+      return;
+    }
+
+    const prompted = window.prompt("Shkruaj emrin tënd");
+
+    if (!prompted || !prompted.trim()) {
+      router.push("/create");
+      return;
+    }
+
+    const clean = prompted.trim();
+    sessionStorage.setItem("quiz_creator_name", clean);
+    setCreatorName(clean);
+    setReady(true);
+  }, [router, template]);
 
   if (!template) {
     return (
@@ -41,11 +63,18 @@ export default function CreatePremiumPage() {
     );
   }
 
-  const progress =
-    step >= 0
-      ? Math.round(((step + 1) / template.questions.length) * 100)
-      : 0;
+  if (!ready) {
+    return (
+      <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="text-4xl mb-3">{template.emoji}</div>
+          <p className="text-lg text-zinc-300">Duke përgatitur quiz-in...</p>
+        </div>
+      </main>
+    );
+  }
 
+  const progress = Math.round(((step + 1) / template.questions.length) * 100);
   const isLastStep = step === template.questions.length - 1;
 
   const next = () => {
@@ -67,7 +96,7 @@ export default function CreatePremiumPage() {
   };
 
   const handleCreate = async () => {
-    if (!name.trim()) {
+    if (!creatorName.trim()) {
       alert("Vendos emrin");
       return;
     }
@@ -89,13 +118,14 @@ export default function CreatePremiumPage() {
       );
 
       const docRef = await addDoc(collection(db, "quizzes"), {
-        name: name.trim(),
+        name: creatorName.trim(),
         templateTitle: template.title,
         templateEmoji: template.emoji,
         questions,
         createdAt: Date.now(),
       });
 
+      sessionStorage.removeItem("quiz_creator_name");
       router.push(`/u/${docRef.id}`);
     } catch (error) {
       console.error(error);
@@ -104,74 +134,6 @@ export default function CreatePremiumPage() {
       setLoading(false);
     }
   };
-
-  const continueToQuestions = () => {
-    if (startLockRef.current || starting) return;
-
-    const cleanName = name.trim();
-
-    if (!cleanName) {
-      alert("Vendos emrin");
-      return;
-    }
-
-    startLockRef.current = true;
-    setStarting(true);
-
-    const active = document.activeElement as HTMLElement | null;
-    active?.blur();
-
-    window.setTimeout(() => {
-      setStep(0);
-      setStarting(false);
-      startLockRef.current = false;
-    }, 250);
-  };
-
-  if (step === -1) {
-    return (
-      <main className="min-h-screen bg-[#0c0c0f] text-white flex items-center justify-center px-4 py-8">
-        <div className="max-w-sm w-full text-center">
-          <div className="text-5xl mb-3">{template.emoji}</div>
-
-          <h1 className="text-3xl font-semibold mb-2">Fillo quizin</h1>
-
-          <p className="text-zinc-400 mb-3">{template.title}</p>
-
-          <p className="text-zinc-500 mb-6">Shkruaj emrin dhe vazhdo</p>
-
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                continueToQuestions();
-              }
-            }}
-            placeholder="Emri yt"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            inputMode="text"
-            enterKeyHint="done"
-            className="w-full bg-[#1a1a1f] border border-zinc-800 rounded-2xl px-5 py-4 text-lg outline-none mb-4 focus:border-green-500"
-          />
-
-          <button
-            type="button"
-            onClick={continueToQuestions}
-            onPointerDown={continueToQuestions}
-            disabled={starting}
-            className="w-full bg-green-500 text-black py-4 rounded-2xl text-xl font-semibold disabled:opacity-70"
-          >
-            {starting ? "Duke vazhduar..." : "Vazhdo →"}
-          </button>
-        </div>
-      </main>
-    );
-  }
 
   const q = template.questions[step];
   const manyOptions = q.options.length > 8;
@@ -194,6 +156,13 @@ export default function CreatePremiumPage() {
         </div>
 
         <div className="rounded-3xl border border-zinc-800 bg-[#1a1a1f] p-4 sm:p-5">
+          <div className="text-center mb-4">
+            <div className="text-4xl mb-2">{template.emoji}</div>
+            <p className="text-zinc-400 text-sm">
+              Quiz për: <span className="text-white font-semibold">{creatorName}</span>
+            </p>
+          </div>
+
           <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-5 leading-tight">
             {q.question}
           </h1>
